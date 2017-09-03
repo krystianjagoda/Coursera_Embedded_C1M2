@@ -17,6 +17,9 @@
 # The target embedded system will use the cross compiler,
 # arm-none-eabi-gcc.
 #
+#* @author Krystian Jagoda
+#* @date September 3 2017
+#
 # Use: make [TARGET] [PLATFORM-OVERRIDES]
 #
 # Build Targets:
@@ -27,15 +30,10 @@
 #      build - Builds and links all source files
 #      clean - Removes all generated files
 #
-# Platform Overrides:
-#      LINKER_FILE -
-#      CPU - ARM Cortex Architecture (cortex-m0plus, cortex-m4)
-#      ARCH - ARM Architecture (arm, thumb)
-#      SPECS - Specs file to give the linker (nosys.specs, nano.specs)
-#
+#Platform Overrides:
+#		PLATFORM=HOST - Compile for HOST using gcc
+#		PLATFORM=MSP432 - Compile for MSP432 using arm-none-eabi-gcc
 #------------------------------------------------------------------------------
-
-# MOJE!!!!!!!!!!!!!!
 
 
 # Platform Specific Flags
