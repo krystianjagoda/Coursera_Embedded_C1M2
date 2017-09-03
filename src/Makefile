@@ -37,53 +37,57 @@
 
 # MOJE!!!!!!!!!!!!!!
 
-include sources.mk
-
-# Architecture Specific Flags
-CPU =
-ARCH =
-SPECS =
 
 # Platform Specific Flags
 PLATFORM = HOST
-LINKER_FILE = msp432p401r.lds
+LINKER_FILE = ../msp432p401r.lds
 
+include sources.mk
+
+GENERALFLAGS = -Wall -Werror -g -O0 -std=c99
+
+# Compile Defines
+TARGET = c1m2
 
 ifeq ($(PLATFORM),HOST)
 	CFLAGS = -DHOST
-	CC = gcc
+	CC = gcc $(GENERALFLAGS)
 	LDFLAGS = -Wl,-Map=$(TARGET).map
+	CPPFLAGS =
 	# etc
 endif
 
 ifeq ($(PLATFORM),MSP432)
-	CFLAGS = -MSP432
-	CC = arm-none-eabi-gcc
-	LDFLAGS = -Wl,-Map=$(TARGET).map -T $(LINKER_FILE)
+	CFLAGS = -DMSP432 -mcpu=cortex-m4 -mthumb -march=armv7e-m \
+		-mfloat-abi=hard -mfpu=fpv4-sp-d16 --specs=nosys.specs
+	CC = arm-none-eabi-gcc $(GENERALFLAGS)
+	LDFLAGS = -T $(LINKER_FILE) -Wl,-Map=$(TARGET).map
+	CPPFLAGS =
 		# etc
 endif
 
 
-# Compile Defines
-LD = arm-none-eabi-ld
-TARGET = c1m2
-
-
-OBJS = $(SRCS:.c=.o)
-MAPS = $(SRCS:.c=.map)
-OUTS = $(SRCS:.c=.out)
-ASSEMBLYS = $(SRCS:.c=.asm)
-DEPENDENTCIES = $(SRCS:.c=.d)
+OBJS = $(SOURCES:.c=.o)
+MAPS = $(SOURCES:.c=.map)
+OUTS = $(SOURCES:.c=.out)
+ASSEMBLYS = $(SOURCES:.c=.s)
+DEPENDENTCIES = $(SOURCES:.c=.d)
 CLEANS = $(TARGET).o $(TARGET).out $(TARGET).map
 
 %.o : %.c
 	$(CC) $(INCLUDES) -c $< $(CFLAGS) -o $@
+
+%.i : %.c
+	$(CC) -E $< $(INCLUDES) $(CFLAGS)
 
 %.d: %.c
 	@set -e; rm -f $@; \
 	$(CC) $(INCLUDES) -MM $(CFLAGS) $< > $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
+
+%.asm : %.c
+	$(CC) -S $< $(INCLUDES) $(CFLAGS)
 
 
 .PHONY: build
@@ -93,9 +97,9 @@ build: all
 all: $(TARGET).out $(DEPENDENTCIES)
 
 $(TARGET).out: $(OBJS)
-	$(CC) $(OBJS) $(CFLAGS) $(LDFLAGS) $(INCLUDES) -o $@
+	$(CC) $(INCLUDES) $(OBJS) $(CFLAGS)  $(LDFLAGS) -o $@
 
-$(DEPENDENTCIES): $(SRCS)
+$(DEPENDENTCIES): $(SOURCES)
 	@set -e; rm -f $@; \
 	$(CC) $(INCLUDES) -MM $(CFLAGS) $< > $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
@@ -104,7 +108,7 @@ $(DEPENDENTCIES): $(SRCS)
 
 .PHONY: compile-all
 compile-all:
-	$(CC) $(INCLUDES) -c $(SRCS) $(CFLAGS)
+	$(CC) $(INCLUDES) -c $(SOURCES) $(CFLAGS)
 
 
 .PHONY: clean
