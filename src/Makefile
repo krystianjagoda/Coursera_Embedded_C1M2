@@ -2,40 +2,116 @@
 # Copyright (C) 2017 by Alex Fosdick - University of Colorado
 #
 # Redistribution, modification or use of this software in source or binary
-# forms is permitted as long as the files maintain this copyright. Users are 
+# forms is permitted as long as the files maintain this copyright. Users are
 # permitted to modify this and use it to learn about the field of embedded
 # software. Alex Fosdick and the University of Colorado are not liable for any
-# misuse of this material. 
+# misuse of this material.
 #
 #*****************************************************************************
 
 #------------------------------------------------------------------------------
-# <Put a Description Here>
+# Simple makefile for two target platforms and their own
+# specific compilers. These two platforms are the HOST and
+# the MSP432.
+# The host embedded system will use the native compiler, gcc.
+# The target embedded system will use the cross compiler,
+# arm-none-eabi-gcc.
+#
+#* @author Krystian Jagoda
+#* @date September 3 2017
 #
 # Use: make [TARGET] [PLATFORM-OVERRIDES]
 #
 # Build Targets:
-#      <Put a description of the supported targets here>
+#      <FILE>.i - Generate <FILE>.i preprocessed output
+#      <FILE>.asm - Generate <FILE>.asm assembly output
+#      <FILE>.o - Builds <FILE>.o object file
+#      compile-all - Compile all object files, but DO NOT link
+#      build - Builds and links all source files
+#      clean - Removes all generated files
 #
-# Platform Overrides:
-#      <Put a description of the supported Overrides here
-#
+#Platform Overrides:
+#		PLATFORM=HOST - Compile for HOST using gcc
+#		PLATFORM=MSP432 - Compile for MSP432 using arm-none-eabi-gcc
 #------------------------------------------------------------------------------
+
+
+# Platform Specific Flags
+PLATFORM = HOST
+LINKER_FILE = ../msp432p401r.lds
+
 include sources.mk
 
-# Platform Overrides
-PLATFORM = 
+GENERALFLAGS = -Wall -Werror -g -O0 -std=c99
 
-# Architectures Specific Flags
-LINKER_FILE = 
-CPU = 
-ARCH = 
-SPECS = 
+# Compile Defines
+TARGET = c1m2
 
-# Compiler Flags and Defines
-CC = 
-LD = 
-LDFLAGS = 
-CFLAGS = 
-CPPFLAGs = 
+ifeq ($(PLATFORM),HOST)
+	CFLAGS = -DHOST
+	CC = gcc $(GENERALFLAGS)
+	LDFLAGS = -Wl,-Map=$(TARGET).map
+	SIZE = size
+	CPPFLAGS =
+	# etc
+endif
 
+ifeq ($(PLATFORM),MSP432)
+	CFLAGS = -DMSP432 -mcpu=cortex-m4 -mthumb -march=armv7e-m \
+	-mfloat-abi=hard -mfpu=fpv4-sp-d16 --specs=nosys.specs
+	CC = arm-none-eabi-gcc $(GENERALFLAGS)
+	LDFLAGS = -T $(LINKER_FILE) -Wl,-Map=$(TARGET).map
+	SIZE = arm-none-eabi-size
+	CPPFLAGS =
+		# etc
+endif
+
+
+OBJS = $(SOURCES:.c=.o)
+MAPS = $(SOURCES:.c=.map)
+OUTS = $(SOURCES:.c=.out)
+ASSEMBLYS = $(SOURCES:.c=.s)
+DEPENDENTCIES = $(SOURCES:.c=.d)
+CLEANS = $(TARGET).o $(TARGET).out $(TARGET).map
+
+%.o : %.c
+	$(CC) $(INCLUDES) -c $< $(CFLAGS) -o $@
+
+%.i : %.c
+	$(CC) -E $< $(INCLUDES) $(CFLAGS)
+
+%.d: %.c
+	@set -e; rm -f $@; \
+	$(CC) $(INCLUDES) -MM $(CFLAGS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+%.asm : %.c
+	$(CC) -S $< $(INCLUDES) $(CFLAGS)
+
+
+.PHONY: build
+build: all
+
+.PHONY: all
+all: $(TARGET).out $(DEPENDENTCIES)
+
+$(TARGET).out: $(OBJS)
+	$(CC) $(INCLUDES) $(OBJS) $(CFLAGS)  $(LDFLAGS) -o $@
+	$(SIZE) -Atd $(OBJS) $(TARGET).out
+
+$(DEPENDENTCIES): $(SOURCES)
+	@set -e; rm -f $@; \
+	$(CC) $(INCLUDES) -MM $(CFLAGS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+
+.PHONY: compile-all
+compile-all:
+	$(CC) $(INCLUDES) -c $(SOURCES) $(CFLAGS)
+
+
+.PHONY: clean
+clean:
+	rm -f *.asm *.o *.d *.map *.out *.i *.size
