@@ -51,15 +51,17 @@ ifeq ($(PLATFORM),HOST)
 	CFLAGS = -DHOST
 	CC = gcc $(GENERALFLAGS)
 	LDFLAGS = -Wl,-Map=$(TARGET).map
+	SIZE = size
 	CPPFLAGS =
 	# etc
 endif
 
 ifeq ($(PLATFORM),MSP432)
 	CFLAGS = -DMSP432 -mcpu=cortex-m4 -mthumb -march=armv7e-m \
-		-mfloat-abi=hard -mfpu=fpv4-sp-d16 --specs=nosys.specs
+	-mfloat-abi=hard -mfpu=fpv4-sp-d16 --specs=nosys.specs
 	CC = arm-none-eabi-gcc $(GENERALFLAGS)
 	LDFLAGS = -T $(LINKER_FILE) -Wl,-Map=$(TARGET).map
+	SIZE = arm-none-eabi-size
 	CPPFLAGS =
 		# etc
 endif
@@ -96,6 +98,7 @@ all: $(TARGET).out $(DEPENDENTCIES)
 
 $(TARGET).out: $(OBJS)
 	$(CC) $(INCLUDES) $(OBJS) $(CFLAGS)  $(LDFLAGS) -o $@
+	$(SIZE) -Atd $(OBJS) $(TARGET).out
 
 $(DEPENDENTCIES): $(SOURCES)
 	@set -e; rm -f $@; \
@@ -111,4 +114,4 @@ compile-all:
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS) $(MAPS) $(OUTS) $(ASSEMBLYS) $(DEPENDENTCIES) $(CLEANS)
+	rm -f *.asm *.o *.d *.map *.out *.i *.size
