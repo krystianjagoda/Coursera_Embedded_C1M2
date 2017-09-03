@@ -40,44 +40,73 @@
 include sources.mk
 
 # Architecture Specific Flags
-CPU = cortex-m0plus
-ARCH:= $(shell arch)
-SPECS:= $(shell specs)
+CPU =
+ARCH =
+SPECS =
 
 # Platform Specific Flags
-PLATFORM:= HOST
-LINKER_FILE = MKL25Z128xxx4_flash.ld
+PLATFORM = HOST
+LINKER_FILE = msp432p401r.lds
 
+
+ifeq ($(PLATFORM),HOST)
+	CFLAGS = -DHOST
+	CC = gcc
+	LDFLAGS = -Wl,-Map=$(TARGET).map
+	# etc
+endif
+
+ifeq ($(PLATFORM),MSP432)
+	CFLAGS = -MSP432
+	CC = arm-none-eabi-gcc
+	LDFLAGS = -Wl,-Map=$(TARGET).map -T $(LINKER_FILE)
+		# etc
+endif
 
 
 # Compile Defines
-CC = gcc
 LD = arm-none-eabi-ld
-TARGET = demo
-LDFLAGS = -Wl,-Map=$(TARGET).map -T $(LINKER_FILE)
-CFLAGS =
+TARGET = c1m2
+
 
 OBJS = $(SRCS:.c=.o)
 MAPS = $(SRCS:.c=.map)
 OUTS = $(SRCS:.c=.out)
 ASSEMBLYS = $(SRCS:.c=.asm)
+DEPENDENTCIES = $(SRCS:.c=.d)
+CLEANS = $(TARGET).o $(TARGET).out $(TARGET).map
 
 %.o : %.c
-	$(CC) -c $< $(CFLAGS) -o $@
+	$(CC) $(INCLUDES) -c $< $(CFLAGS) -o $@
+
+%.d: %.c
+	@set -e; rm -f $@; \
+	$(CC) $(INCLUDES) -MM $(CFLAGS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
 
 .PHONY: build
 build: all
 
 .PHONY: all
-all: $(TARGET).out
+all: $(TARGET).out $(DEPENDENTCIES)
 
 $(TARGET).out: $(OBJS)
-	$(CC) $(OBJS) $(CFLAGS) $(LDFLAGS) -o $@
+	$(CC) $(OBJS) $(CFLAGS) $(LDFLAGS) $(INCLUDES) -o $@
+
+$(DEPENDENTCIES): $(SRCS)
+	@set -e; rm -f $@; \
+	$(CC) $(INCLUDES) -MM $(CFLAGS) $< > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
 
 .PHONY: compile-all
 compile-all:
-	$(CC) $(INCLUDES) -c $(SRCS)
+	$(CC) $(INCLUDES) -c $(SRCS) $(CFLAGS)
+
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS) $(MAPS) $(OUTS) $(ASSEMBLYS)
+	rm -f $(OBJS) $(MAPS) $(OUTS) $(ASSEMBLYS) $(DEPENDENTCIES) $(CLEANS)

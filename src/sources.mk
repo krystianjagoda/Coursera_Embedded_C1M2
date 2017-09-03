@@ -12,9 +12,10 @@
 # Add your Source files to this variable
 SRCS = 		\
 	main.c 	\
-	memory.c
+	memory.c \
 
 
 # Add your include paths to this variable
 INCLUDES =		\
-	-I ../include/common/
+	-I ../include/common/ \
+	-I ../
